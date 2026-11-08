@@ -1,0 +1,34 @@
+# Backend server.properties keys for an EaglerXHorizon origin.
+# Merge these into the backend's own server.properties (Fabric 1.21.1 or Paper).
+# Port only one line per key; values shown are the recommended baseline.
+
+# The proxy authenticates players, so the backend must not try to verify sessions.
+# Without this every browser login fails with "Invalid session".
+online-mode=false
+
+# The backend must listen only on loopback: the proxy is the only entry point.
+server-ip=127.0.0.1
+server-port=25566
+
+# Compression is done once, in the proxy. A second pass costs CPU and adds latency
+# to the small binary packets the client sends constantly.
+network-compression-threshold=-1
+
+# Never force the pack: Eaglercraft clients get it as a prompt so the player
+# decides what runs in their browser.
+require-resource-pack=false
+resource-pack-prompt={"text":"EaglerXHorizon texture pack (optional)","color":"aqua"}
+
+# Simulation distance below render distance keeps the always-free CPU headroom
+# for the proxy and the browser-facing listener.
+simulation-distance=6
+view-distance=8
+
+# Browsers pause tabs; a short timeout would drop idle players constantly.
+player-idle-timeout=0
+
+# Stop the "moved too quickly" kicks that browser frame hitches trigger.
+max-tick-time=-1
+
+# Eaglercraft names are ASCII only.
+enforce-secure-profile=false

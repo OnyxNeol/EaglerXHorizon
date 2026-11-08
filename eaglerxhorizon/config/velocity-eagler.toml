@@ -1,0 +1,61 @@
+# Velocity + EaglerXServer alternative stack.
+# Use this instead of EaglercraftXBungee when the backend is a modern Fabric/Paper
+# server on 1.21.x and you want a maintained proxy with the WebSocket listener.
+#
+# Install: drop EaglerXServer in plugins/, write this file to
+# plugins/eaglerxserver/velocity-eagler.toml, then copy forwarding.secret to
+# /etc/eaglerxhorizon/forwarding.secret and point the backend at the same value.
+
+[server]
+bind = "0.0.0.0:8081"
+motd = "<gradient:#22d3ee:#f0abfc>EaglerXHorizon</gradient> <gray>· Rust/WebGPU"
+max-players = 120
+online-mode = false
+# Modern forwarding: the backend must run paper-global.yml -> proxies.velocity
+# (or Fabric's velocity module) with the same secret.
+player-info-forwarding-mode = "modern"
+forwarding-secret-file = "/etc/eaglerxhorizon/forwarding.secret"
+
+[websocket]
+enabled = true
+# Served on the same port as the plain listener; nginx upgrades to wss://.
+path = "/ws"
+max-frame-bytes = 2097152
+permessage-deflate = false
+handshake-timeout-ms = 15000
+
+[client]
+# The browser client bundle, served from the proxy's own static root.
+serve-client = true
+client-path = "/client"
+asset-dir = "/srv/eaglerxhorizon/web"
+protocol-versions = ["1.21.4", "1.12.2", "1.8.8"]
+
+[retry]
+# Backoff for the proxy -> backend connection.
+max-attempts = 8
+base-delay-ms = 400
+max-delay-ms = 15000
+jitter = 0.35
+
+[ratelimit]
+connections-per-ip = 8
+handshakes-per-minute = 60
+
+[origin]
+enabled = true
+allowed = [
+  "https://proxy.example.com",
+  "https://eaglerxhorizon.example.com",
+  "http://localhost:8000",
+  "http://127.0.0.1:8000",
+]
+
+[servers.horizon]
+address = "127.0.0.1:25566"
+motd = "<aqua>private backend"
+restricted = false
+
+[logging]
+level = "info"
+log-handshakes = true

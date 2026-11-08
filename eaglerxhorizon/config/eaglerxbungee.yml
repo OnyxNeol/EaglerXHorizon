@@ -1,0 +1,124 @@
+# EaglercraftXBungee configuration template for EaglerXHorizon
+# Target host: Oracle Cloud Always Free Tier (Ampere A1, Ubuntu 22.04/24.04)
+#
+# This is a TEMPLATE, not a byte-for-byte copy of the file the plugin writes on
+# first boot. Start the proxy once, let it generate `plugins/EaglercraftXBungee/
+# config.yml`, then port these values across (or copy this file into place after
+# a backup). Keys marked REQUIRED must match your environment.
+#
+# Topology:
+#   browser  --wss-->  nginx :443  --ws-->  EaglercraftXBungee :8081  -->  Fabric/Paper 127.0.0.1:25566
+#
+# EaglercraftXBungee is a BungeeCord fork: listener/host keys follow BungeeCord
+# and only the `eaglercraft` / `server_icon` sections are plugin specific.
+
+settings:
+  # REQUIRED: keep this false. Browsers cannot complete a Mojang session handshake
+  # inside the page, and Eaglercraft uses its own profile/name model.
+  online_mode: false
+  # Non-ASCII names break the Eaglercraft client font renderer; enforce ASCII.
+  enforce_ascii_names: true
+  # Player count shown in the browser launcher before anyone joins.
+  max_players_per_listener: 120
+  # Print the wss:// URL players should dial on boot.
+  log_client_url: true
+
+listeners:
+  - host: 0.0.0.0:8081
+    # This is the plain-WS listener. TLS is terminated by nginx in front of it
+    # (see deploy/nginx.conf) so the browser only ever sees wss://.
+    priorities:
+      - horizon
+    motd: '§bEagler§3X§bHorizon §7· §fRust/WebGPU client'
+    max_players: 120
+    tab_list_size: 60
+    # The browser client bundle is served from the same port over HTTP.
+    eaglercraft:
+      # Path the plugin answers with the JS client and its assets.
+      client_path: /client
+      # Serve the in-browser client directly from this listener.
+      serve_client: true
+      # Where the built client lives. Replace with your own build if you fork the
+      # client; the EaglerXHorizon dashboard is served separately at /.
+      client_asset_dir: /srv/eaglerxhorizon/web
+      # Protocol versions the browser client advertises. Keep the modern one
+      # first: the launcher picks the highest shared version.
+      protocol_versions:
+        - '1.21.4'
+        - '1.12.2'
+        - '1.8.8'
+      # Resource pack: handed to the client as a prompt, never force-installed.
+      # Keep this false so a player always chooses.
+      resource_pack_required: false
+      resource_pack_url: ''
+      resource_pack_sha1: ''
+      # Allow the launcher to open a second tab for the pack download.
+      allow_external_resource_pack: true
+    # Address the listener reports to clients for the client download.
+    client_url: 'wss://proxy.example.com/ws'
+
+# Backend servers reached from the proxy. Base44-hosted presets can point at
+# these ports; the browser only ever sees the WebSocket URL above.
+servers:
+  horizon:
+    address: 127.0.0.1:25566
+    motd: '§bEagler§3X§bHorizon §7· private backend'
+    restricted: false
+    server_icon: server-icon.png
+  # Add public presets only if you are authorised to route traffic to them.
+  # DonutSMP and Unstable SMP are examples from the dashboard seed data and are
+  # NOT connected here by default.
+
+# Browser-side limits. These matter more than they look: a page can open many
+# sockets and a bored user will.
+eaglercraft:
+  ratelimit:
+    # Connections per IP per 10 second window.
+    connections_per_ip: 8
+    # Handshakes per IP per minute.
+    handshakes_per_minute: 60
+  compression:
+    # Binary packets are already compact; zlib only helps the client bundle.
+    enabled: true
+    level: 3
+    threshold_bytes: 1024
+  timeouts:
+    # A browser tab that is backgrounded stops responding; drop it gently.
+    read_seconds: 30
+    write_seconds: 30
+    # Time allowed between handshake start and login finish.
+    login_seconds: 20
+  origin_checks:
+    # REQUIRED in production: only these origins may open a socket.
+    enabled: true
+    allowed_origins:
+      - 'https://proxy.example.com'
+      - 'https://eaglerxhorizon.example.com'
+      - 'http://127.0.0.1:8000'
+      - 'http://localhost:8000'
+  # Eaglercraft clients send a version string in the handshake; reject the ones
+  # your backend cannot translate.
+  allowed_client_versions:
+    - '1.21.4'
+    - '1.12.2'
+    - '1.8.8'
+
+# Message shown when the backend is unreachable.
+messages:
+  kick_offline: '§cBackend server is restarting. Try again in a moment.'
+  kick_ratelimit: '§cToo many connections from your address. Wait a few seconds.'
+  kick_version: '§cThat client version is not supported by this node.'
+  kick_origin: '§cThis origin is not allowed to connect to this proxy.'
+
+server_icon: server-icon.png
+
+# Advanced: how the proxy talks to the backend.
+advanced:
+  # Keep BungeeCord legacy forwarding off; use modern forwarding on the backend.
+  bungee_forwarding: false
+  # Velocity modern forwarding secret, if the backend is Velocity instead.
+  velocity_secret_file: /etc/eaglerxhorizon/forwarding.secret
+  # Watchdog: restart the listener if it stops accepting.
+  watchdog_interval_seconds: 30
+  # Log every handshake failure with the client version for triage.
+  verbose_handshake_logging: true

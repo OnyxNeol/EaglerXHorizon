@@ -1,0 +1,52 @@
+[package]
+name = "eaglerxhorizon"
+version = "0.1.0"
+edition = "2021"
+authors = ["EaglerXHorizon"]
+description = "High-performance browser Minecraft client: Rust core, WebGPU renderer, WebSocket proxy bridge"
+license = "MIT"
+repository = "https://github.com/eaglerxhorizon/eaglerxhorizon"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+wgpu = { version = "0.19", default-features = false, features = ["webgpu"] }
+gloo-net = { version = "0.5", features = ["websocket"] }
+gloo-timers = { version = "0.3", features = ["futures"] }
+glam = { version = "0.27", features = ["bytemuck"] }
+byteorder = "1.5"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+js-sys = "0.3"
+console_error_panic_hook = "0.1"
+bytemuck = { version = "1", features = ["derive"] }
+log = "0.4"
+wasm-logger = "0.2"
+thiserror = "2"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+  "Window",
+  "Document",
+  "Element",
+  "HtmlCanvasElement",
+  "HtmlElement",
+  "Navigator",
+  "Performance",
+  "Event",
+  "EventTarget",
+  "KeyboardEvent",
+  "MouseEvent",
+  "console",
+]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

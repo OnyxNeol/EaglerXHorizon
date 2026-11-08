@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>EaglerXHorizon — Launcher</title>
+<meta name="description" content="EaglerXHorizon: browser Minecraft client on Rust/WebAssembly, WebGPU graphics and WebSocket proxy routing." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          abyss: '#05070d',
+          panel: '#0b1018',
+          panel2: '#0e1622',
+          edge: '#1b2736',
+          cy: '#22d3ee',
+          mag: '#f0abfc',
+          lime2: '#a3e635',
+          warn: '#fbbf24',
+          danger: '#fb7185',
+        },
+        fontFamily: {
+          display: ['Rajdhani', 'system-ui', 'sans-serif'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        },
+        boxShadow: {
+          glow: '0 0 0 1px rgba(34,211,238,.35), 0 0 24px rgba(34,211,238,.18)',
+          edges: 'inset 0 1px 0 rgba(255,255,255,.04)',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  :root { color-scheme: dark; }
+  html, body { height: 100%; }
+  body {
+    background:
+      radial-gradient(1100px 620px at 78% -12%, rgba(240,171,252,.13), transparent 62%),
+      radial-gradient(900px 560px at 8% 4%, rgba(34,211,238,.14), transparent 60%),
+      #05070d;
+    font-family: Rajdhani, system-ui, sans-serif;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image: linear-gradient(rgba(34,211,238,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34,211,238,.045) 1px, transparent 1px);
+    background-size: 46px 46px;
+    mask-image: radial-gradient(circle at 50% 30%, #000 25%, transparent 78%);
+    z-index: 0;
+  }
+  .scanline::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,.022) 0 1px, transparent 1px 3px);
+    pointer-events: none;
+    border-radius: inherit;
+  }
+  .ping-bar { width: 3px; border-radius: 2px; background: rgba(255,255,255,.12); }
+  .ping-bar.on-1 { background: #a3e635; }
+  .ping-bar.on-2 { background: #22d3ee; }
+  .ping-bar.on-3 { background: #fbbf24; }
+  .ping-bar.on-4 { background: #fb7185; }
+  .card-selected { border-color: rgba(34,211,238,.65) !important; box-shadow: 0 0 0 1px rgba(34,211,238,.4), 0 0 30px rgba(34,211,238,.16); }
+  input[type='range'] { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 999px; background: #1b2736; }
+  input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none; height: 16px; width: 16px; border-radius: 999px;
+    background: #22d3ee; border: 2px solid #05070d; box-shadow: 0 0 12px rgba(34,211,238,.75); cursor: pointer;
+  }
+  input[type='range']::-moz-range-thumb {
+    height: 14px; width: 14px; border: 2px solid #05070d; border-radius: 999px; background: #22d3ee; cursor: pointer;
+  }
+  .toggle { width: 44px; height: 24px; border-radius: 999px; background: #1b2736; position: relative; transition: background .18s ease; flex: none; }
+  .toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 999px; background: #7c8ba1; transition: transform .18s ease, background .18s ease; }
+  .toggle[aria-checked='true'] { background: rgba(34,211,238,.28); }
+  .toggle[aria-checked='true']::after { transform: translateX(20px); background: #22d3ee; box-shadow: 0 0 10px rgba(34,211,238,.8); }
+  .drawer { transition: transform .28s cubic-bezier(.22,.61,.36,1), opacity .28s ease; }
+  .recording { animation: pulse-key 1s ease-in-out infinite; }
+  @keyframes pulse-key { 0%,100% { box-shadow: 0 0 0 0 rgba(240,171,252,.5); } 50% { box-shadow: 0 0 0 6px rgba(240,171,252,0); } }
+  .no-scrollbar::-webkit-scrollbar { width: 6px; }
+  .no-scrollbar::-webkit-scrollbar-thumb { background: #1b2736; border-radius: 999px; }
+  .fade-in { animation: fade .25s ease both; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body class="min-h-screen text-slate-200 antialiased">
+<div class="relative z-10 mx-auto flex min-h-screen w-full max-w-[1500px] flex-col px-3 pb-4 pt-3 sm:px-5 sm:pb-6 sm:pt-5">
+
+  <!-- top bar -->
+  <header class="flex flex-wrap items-center gap-3 rounded-xl border border-edge/80 bg-panel/80 px-3 py-2.5 backdrop-blur">
+    <div class="flex items-center gap-2.5">
+      <span class="relative grid h-9 w-9 place-items-center rounded-lg border border-cy/40 bg-cy/10">
+        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="#22d3ee" stroke-width="1.7" aria-hidden="true">
+          <path d="M3 12l4.5-7h9L21 12l-4.5 7h-9z" />
+          <path d="M8.5 12h7" />
+        </svg>
+      </span>
+      <div class="leading-none">
+        <h1 class="font-display text-[19px] font-bold tracking-[0.18em] text-white">EAGLER<span class="text-cy">X</span>HORIZON</h1>
+        <p class="mt-1 font-mono text-[10px] uppercase tracking-[0.22em] text-slate-500">rust · wasm · webgpu · wss proxy</p>
+      </div>
+    </div>
+
+    <div class="order-3 flex w-full flex-wrap items-center gap-2 sm:order-none sm:ml-4 sm:w-auto">
+      <span id="engine-pill" class="inline-flex items-center gap-2 rounded-full border border-edge bg-panel2 px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-slate-400">
+        <span id="connection-dot" class="h-1.5 w-1.5 rounded-full bg-slate-500"></span>
+        <span id="engine-pill-text">engine idle</span>
+      </span>
+      <span class="inline-flex items-center gap-1.5 rounded-full border border-edge bg-panel2 px-3 py-1 font-mono text-[11px] text-slate-400">
+        <span class="text-slate-600">fps</span><span id="fps-value" class="text-white">—</span>
+      </span>
+      <span class="inline-flex items-center gap-1.5 rounded-full border border-edge bg-panel2 px-3 py-1 font-mono text-[11px] text-slate-400">
+        <span class="text-slate-600">ping</span><span id="ping-value" class="text-white">—</span>
+      </span>
+    </div>
+
+    <button id="settings-btn" type="button"
+      class="ml-auto inline-flex items-center gap-2 rounded-lg border border-edge bg-panel2 px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-slate-300 transition hover:border-cy/50 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-cy/60">
+      <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+        <circle cx="12" cy="12" r="3.2" />
+        <path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V21a2 2 0 11-4 0v-.09a1.7 1.7 0 00-1.1-1.55 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.7 1.7 0 004.6 15a1.7 1.7 0 00-1.55-1H3a2 2 0 110-4h.09A1.7 1.7 0 004.6 8.9a1.7 1.7 0 00-.34-1.87l-.06-.06A2 2 0 117.03 4.14l.06.06a1.7 1.7 0 001.87.34H9a1.7 1.7 0 001-1.55V3a2 2 0 114 0v.09a1.7 1.7 0 001 1.55 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87V9a1.7 1.7 0 001.55 1H21a2 2 0 110 4h-.09a1.7 1.7 0 00-1.51 1z" />
+      </svg>
+      settings
+    </button>
+  </header>
+
+  <!-- notices -->
+  <div id="webgpu-notice" class="mt-3 hidden rounded-xl border border-warn/40 bg-warn/10 px-4 py-3 text-sm text-amber-100">
+    <div class="flex flex-wrap items-start gap-3">
+      <svg viewBox="0 0 24 24" class="mt-0.5 h-5 w-5 flex-none text-warn" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <path d="M12 9v4.5M12 17h.01M10.3 4.3L2.6 18a1.6 1.6 0 001.4 2.4h16a1.6 1.6 0 001.4-2.4L13.7 4.3a1.6 1.6 0 00-2.8 0z" />
+      </svg>
+      <div class="min-w-0 flex-1">
+        <p class="font-semibold text-warn">WebGPU is not available in this browser</p>
+        <p id="notice-text" class="mt-1 text-[13px] leading-relaxed text-amber-100/85">
+          Enable the flag at <code class="rounded bg-black/40 px-1.5 py-0.5 font-mono text-[12px] text-warn">chrome://flags/#enable-unsafe-webgpu</code>,
+          set it to Enabled, restart the browser, then reload. Until then the client runs on the WebGL2 fallback with reduced render distance.
+        </p>
+      </div>
+      <button id="copy-flag-btn" type="button" class="rounded-lg border border-warn/50 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-warn transition hover:bg-warn/15">
+        copy flag url
+      </button>
+    </div>
+  </div>
+
+  <div id="toast" class="pointer-events-none fixed bottom-5 left-1/2 z-50 hidden -translate-x-1/2 rounded-lg border border-edge bg-panel2 px-4 py-2 font-mono text-xs text-slate-200 shadow-glow"></div>
+
+  <!-- main -->
+  <main class="mt-3 grid flex-1 grid-cols-1 gap-3 lg:grid-cols-[1.55fr_1fr]">
+    <!-- servers -->
+    <section class="scanline relative flex min-h-[320px] flex-col overflow-hidden rounded-xl border border-edge/80 bg-panel/70 backdrop-blur">
+      <div class="flex flex-wrap items-center gap-3 border-b border-edge/70 px-4 py-3">
+        <h2 class="font-display text-sm font-bold uppercase tracking-[0.2em] text-white">Servers</h2>
+        <span id="server-count" class="rounded-full border border-edge bg-panel2 px-2 py-0.5 font-mono text-[10px] text-slate-400">0 presets</span>
+        <div class="relative ml-auto w-full sm:w-56">
+          <svg viewBox="0 0 24 24" class="pointer-events-none absolute left-2.5 top-2 h-4 w-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
+          </svg>
+          <input id="search-input" type="search" placeholder="filter servers…" autocomplete="off"
+            class="w-full rounded-lg border border-edge bg-abyss/70 py-1.5 pl-8 pr-2 font-mono text-[12px] text-slate-200 placeholder:text-slate-600 focus:border-cy/60 focus:outline-none focus-visible:ring-1 focus-visible:ring-cy/40" />
+        </div>
+      </div>
+      <div id="server-list" class="no-scrollbar grid flex-1 content-start gap-2 overflow-y-auto p-3 sm:grid-cols-2"></div>
+    </section>
+
+    <!-- nodes + launch -->
+    <section class="flex flex-col gap-3">
+
+      <!-- PDS Quick Play: ephemeral burner fleet -->
+      <div class="scanline relative overflow-hidden rounded-xl border border-mag/30 bg-gradient-to-br from-panel/95 via-panel/80 to-panel2/70 p-4 backdrop-blur">
+        <div class="flex items-start gap-3">
+          <div class="min-w-0">
+            <p class="font-mono text-[10px] uppercase tracking-[0.24em] text-mag">pds · burner fleet</p>
+            <h2 class="font-display text-[17px] font-bold leading-tight text-white">Quick Play containers</h2>
+            <p class="mt-0.5 text-[12px] leading-snug text-slate-500">Ephemeral 64 MB proxies. Compromised boxes are burned and their slot recycled.</p>
+          </div>
+          <div class="ml-auto flex flex-none flex-col items-end gap-1.5">
+            <span id="webgpu-badge" class="inline-flex items-center gap-1.5 rounded-full border border-cy/40 bg-cy/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-cy">webgpu ready</span>
+            <span id="pds-ping" class="font-mono text-[11px] text-slate-400">ping —</span>
+          </div>
+        </div>
+
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <button id="pds-launch" type="button"
+            class="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-mag to-cy px-4 py-2.5 font-display text-[13px] font-bold uppercase tracking-[0.2em] text-abyss transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-mag/70">
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+              <path d="M13 2L4.5 13.5H11l-1 8.5 8.5-11.5H12z" />
+            </svg>
+            PDS Quick Play
+          </button>
+          <span id="pds-count" class="rounded-full border border-edge bg-abyss/60 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-slate-400">0/0 boxes</span>
+          <button id="pds-burn" type="button" title="burn the selected burner box (docker rm -f)"
+            class="rounded-lg border border-edge px-2.5 py-2 font-mono text-[10px] uppercase tracking-wider text-slate-400 transition hover:border-danger/60 hover:text-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-danger/60">
+            burn
+          </button>
+        </div>
+
+        <div id="pds-list" class="no-scrollbar mt-3 grid max-h-[168px] gap-1.5 overflow-y-auto"></div>
+        <p id="pds-state" class="mt-2 truncate font-mono text-[10px] uppercase tracking-[0.16em] text-slate-600">fleet idle</p>
+      </div>
+
+      <div class="scanline relative flex min-h-[220px] flex-col overflow-hidden rounded-xl border border-edge/80 bg-panel/70 backdrop-blur">
+        <div class="flex items-center gap-2 border-b border-edge/70 px-4 py-3">
+          <h2 class="font-display text-sm font-bold uppercase tracking-[0.2em] text-white">Proxy nodes</h2>
+          <span id="node-count" class="rounded-full border border-edge bg-panel2 px-2 py-0.5 font-mono text-[10px] text-slate-400">0</span>
+          <button id="refresh-nodes" type="button" title="re-measure latency"
+            class="ml-auto rounded-md border border-edge p-1.5 text-slate-400 transition hover:border-cy/50 hover:text-cy focus:outline-none focus-visible:ring-2 focus-visible:ring-cy/50">
+            <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M21 12a9 9 0 11-3.2-6.9" /><path d="M21 3v6h-6" />
+            </svg>
+          </button>
+        </div>
+        <div id="node-list" class="no-scrollbar grid flex-1 content-start gap-1.5 overflow-y-auto p-2.5"></div>
+      </div>
+
+      <div class="rounded-xl border border-edge/80 bg-panel/70 p-4 backdrop-blur">
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <p class="font-mono text-[10px] uppercase tracking-[0.22em] text-slate-500">ready to launch</p>
+            <p id="selected-server" class="truncate font-display text-lg font-bold text-white">—</p>
+            <p id="selected-node" class="truncate font-mono text-[11px] text-slate-500">no node selected</p>
+          </div>
+          <div id="selected-summary" class="hidden font-mono text-[11px] text-slate-400 sm:block"></div>
+        </div>
+        <button id="launch-btn" type="button" disabled
+          class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-cy px-4 py-3 font-display text-sm font-bold uppercase tracking-[0.22em] text-abyss transition hover:bg-cy/90 disabled:cursor-not-allowed disabled:bg-edge disabled:text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-cy/60">
+          <svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg>
+          <span id="launch-label">launch client</span>
+        </button>
+        <p class="mt-2 text-center font-mono text-[10px] uppercase tracking-[0.18em] text-slate-600">esc exits fullscreen · shift+f11 toggles</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-edge/60 bg-panel/50 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.16em] text-slate-500">
+    <span>build <span id="build-version" class="text-slate-300">0.1.0</span></span>
+    <span>data <span id="api-source" class="text-slate-300">local sample</span></span>
+    <span id="renderer-state" class="text-slate-500">renderer —</span>
+    <span class="ml-auto hidden sm:inline">eaglerxhorizon · mit</span>
+  </footer>
+</div>
+
+<!-- game layer -->
+<div id="game-layer" class="fixed inset-0 z-40 hidden bg-abyss">
+  <canvas id="canvas-target" class="block h-full w-full"></canvas>
+  <div id="webgpu-banner" class="pointer-events-none absolute left-1/2 top-4 hidden -translate-x-1/2 rounded-lg border border-warn/50 bg-abyss/90 px-4 py-2 font-mono text-[11px] text-warn">
+    webgl2 fallback · enable chrome://flags/#enable-unsafe-webgpu for WebGPU
+  </div>
+  <div class="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
+    <div id="game-hud" class="mt-16 rounded-lg border border-edge/70 bg-abyss/70 px-3 py-1.5 font-mono text-[11px] text-slate-300 backdrop-blur">
+      <span id="game-hud-state" class="text-cy">booting</span>
+      <span class="mx-2 text-slate-600">|</span>fps <span id="game-hud-fps">—</span>
+      <span class="mx-2 text-slate-600">|</span>ping <span id="game-hud-ping">—</span>
+      <span class="mx-2 text-slate-600">|</span><span id="game-hud-backend">webgpu</span>
+    </div>
+  </div>
+  <button id="game-close" type="button"
+    class="absolute right-4 top-4 rounded-lg border border-edge bg-abyss/80 px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-slate-300 backdrop-blur transition hover:border-danger/60 hover:text-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-danger/60">
+    exit · esc
+  </button>
+</div>
+
+<!-- settings drawer -->
+<div id="drawer-backdrop" class="fixed inset-0 z-40 hidden bg-black/60 backdrop-blur-sm"></div>
+<aside id="settings-drawer" class="drawer fixed right-0 top-0 z-50 flex h-full w-full max-w-[420px] translate-x-full flex-col border-l border-edge bg-panel shadow-2xl" aria-hidden="true">
+  <div class="flex items-center gap-3 border-b border-edge px-4 py-3.5">
+    <h2 class="font-display text-sm font-bold uppercase tracking-[0.2em] text-white">Client settings</h2>
+    <button id="close-settings" type="button" class="ml-auto rounded-md border border-edge p-1.5 text-slate-400 transition hover:border-cy/50 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-cy/50">
+      <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+    </button>
+  </div>
+
+  <div class="no-scrollbar flex-1 space-y-4 overflow-y-auto px-4 py-4">
+    <div class="rounded-lg border border-edge bg-panel2/70 p-3">
+      <div class="flex items-start gap-3">
+        <div class="min-w-0 flex-1">
+          <p class="font-semibold text-slate-100">WebGPU hardware acceleration</p>
+          <p class="mt-0.5 text-[12px] leading-snug text-slate-500">Off falls back to WebGL2: lower render distance, no compute passes.</p>
+        </div>
+        <button id="set-webgpu" type="button" role="switch" aria-checked="true" class="toggle mt-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-cy/60" aria-label="WebGPU hardware acceleration"></button>
+      </div>
+    </div>
+
+    <div>
+      <div class="flex items-baseline justify-between">
+        <label for="set-render-distance" class="font-semibold text-slate-200">Render distance</label>
+        <span class="font-mono text-[12px] text-cy"><span id="render-distance-value">24</span> chunks</span>
+      </div>
+      <input id="set-render-distance" type="range" min="16" max="64" step="1" value="24" class="mt-2 w-full" />
+      <div class="mt-1 flex justify-between font-mono text-[10px] text-slate-600"><span>16</span><span>32</span><span>48</span><span>64</span></div>
+    </div>
+
+    <div>
+      <div class="flex items-baseline justify-between">
+        <label for="set-fov" class="font-semibold text-slate-200">Field of view</label>
+        <span class="font-mono text-[12px] text-cy"><span id="fov-value">80</span>°</span>
+      </div>
+      <input id="set-fov" type="range" min="60" max="110" step="1" value="80" class="mt-2 w-full" />
+    </div>
+
+    <div class="grid grid-cols-2 gap-2">
+      <div class="flex items-center gap-2 rounded-lg border border-edge bg-panel2/70 px-3 py-2">
+        <span class="text-[13px] font-semibold text-slate-200">VSync</span>
+        <button id="set-vsync" type="button" role="switch" aria-checked="true" class="toggle ml-auto scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cy/60" aria-label="VSync"></button>
+      </div>
+      <div class="flex items-center gap-2 rounded-lg border border-edge bg-panel2/70 px-3 py-2">
+        <span class="text-[13px] font-semibold text-slate-200">Mute</span>
+        <button id="set-mute" type="button" role="switch" aria-checked="false" class="toggle ml-auto scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-cy/60" aria-label="Mute audio"></button>
+      </div>
+    </div>
+
+    <div>
+      <div class="flex items-center justify-between">
+        <h3 class="font-display text-[13px] font-bold uppercase tracking-[0.18em] text-slate-300">Keybindings</h3>
+        <span class="font-mono text-[10px] text-slate-600">click a key to rebind</span>
+      </div>
+      <div id="keybind-list" class="mt-2 space-y-1"></div>
+    </div>
+  </div>
+
+  <div class="border-t border-edge px-4 py-3">
+    <div class="flex items-center gap-2">
+      <button id="reset-settings" type="button" class="rounded-lg border border-edge px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-slate-400 transition hover:border-danger/50 hover:text-danger">reset</button>
+      <span id="save-state" class="ml-auto font-mono text-[10px] uppercase tracking-wider text-slate-600">saved locally</span>
+    </div>
+  </div>
+</aside>
+
+<script type="module" src="./bootstrap.js"></script>
+<script type="module" src="./pds.js"></script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+# EaglerXHorizon local stack: proxy + backend + static dashboard.
+# The dashboard is served from the proxy's own HTTP listener, so this file is
+# enough to open http://localhost:8081/ and see the launcher.
+#
+#   docker compose up --build
+#   docker compose logs -f proxy
+#
+# For the browser to reach a non-localhost machine over TLS, put an nginx or
+# Caddy instance in front of port 8081 (see deploy/nginx.conf).
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: eaglerxhorizon/base:local
+    container_name: horizon-backend
+    command: >
+      java -Xms1G -Xmx2G -XX:+UseZGC
+      -jar /srv/backend/server.jar nogui
+    working_dir: /srv/backend
+    volumes:
+      - backend-data:/srv/backend
+      - ./config/server.properties.snippet:/srv/backend/server.properties:ro
+    ports:
+      - "25566:25566"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 25566 || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+
+  proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: eaglerxhorizon/base:local
+    container_name: horizon-proxy
+    command: >
+      java -Xms512M -Xmx1536M -XX:+UseZGC
+      -jar /srv/proxy/EaglercraftXBungee.jar
+    working_dir: /srv/proxy
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - proxy-data:/srv/proxy
+      - ./config/eaglerxbungee.yml:/srv/proxy/plugins/EaglercraftXBungee/config.yml:ro
+      - ../web:/srv/eaglerxhorizon/web:ro
+    environment:
+      HORIZON_BACKEND: backend:25566
+      HORIZON_CLIENT_DIR: /srv/eaglerxhorizon/web
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8081/ >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+
+volumes:
+  backend-data:
+  proxy-data:

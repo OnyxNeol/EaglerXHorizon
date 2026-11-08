@@ -1,0 +1,41 @@
+# Rust / wasm build output
+/target
+**/*.rs.bk
+Cargo.lock
+
+# wasm-pack output (rebuild with scripts/build-wasm.sh)
+web/pkg/
+web/pkg/*.wasm
+web/pkg/*.js
+
+# dependencies
+node_modules/
+
+# local deployment state
+/srv
+*.jar
+*.zip
+!web/assets/*.zip
+
+# runtime data
+logs/
+*.log
+world/
+plugins/
+proxy-data/
+backend-data/
+forwarding.secret
+*.secret
+
+# secrets and environment
+.env
+.env.local
+.env.*.local
+
+# editor and OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp

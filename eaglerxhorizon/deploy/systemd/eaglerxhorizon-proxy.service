@@ -1,0 +1,43 @@
+[Unit]
+Description=EaglerXHorizon browser proxy (EaglercraftXBungee WebSocket listener)
+Documentation=https://github.com/eaglerxhorizon/eaglerxhorizon
+After=network-online.target
+Wants=network-online.target
+# The backend must be up before the proxy starts listening.
+# Replace with your backend unit name if you run one.
+After=eaglerxhorizon-backend.service
+Wants=eaglerxhorizon-backend.service
+
+[Service]
+Type=simple
+User=horizon
+Group=horizon
+WorkingDirectory=/srv/eaglerxhorizon/proxy
+
+# -Xms/-Xmx: the proxy is small; the backend owns the rest of the 24 GB.
+# -XX:+UseZGC is available on Java 21 and keeps pauses off the socket thread.
+ExecStart=/usr/bin/java \
+  -Xms512M -Xmx1536M \
+  -XX:+UseZGC -XX:+ExitOnOutOfMemoryError \
+  -Dfile.encoding=UTF-8 \
+  -jar /srv/eaglerxhorizon/proxy/EaglercraftXBungee.jar
+
+Restart=always
+RestartSec=3
+# Give the listener time to flush sockets before SIGKILL.
+TimeoutStopSec=20
+KillSignal=SIGTERM
+
+# Modest hardening. The proxy needs write access to its own directory only.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/eaglerxhorizon/proxy
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=eaglerxhorizon-proxy
+
+[Install]
+WantedBy=multi-user.target
